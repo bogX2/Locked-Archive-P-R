@@ -94,6 +94,7 @@ proc(escape_task,
 proc(control_simple,
   search(escape_task)
 ).
+proc(control(simple), control_simple).   % course-style alias (see main_*.pl)
 
 %% ------------------------------------------------------------
 %% Reactive Controller: prioritized_interrupts re-evaluates the
@@ -113,6 +114,7 @@ proc(control_reactive,
     ]
   )
 ).
+proc(control(reactive), control_reactive).   % course-style alias (see main_*.pl)
 
 %% escape_still_possible: cheap sanity check used as the search
 %% target for a single reactive step -- true if, from here, the
