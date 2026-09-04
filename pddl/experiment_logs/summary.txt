@@ -1,0 +1,72 @@
+=== easy / blind ===
+  [t=0.001776s, 11484 KB] Actual search time: 0.000070s
+  [t=0.001785s, 11484 KB] Plan length: 6 step(s).
+  [t=0.001785s, 11484 KB] Plan cost: 2
+  [t=0.001785s, 11484 KB] Expanded 9 state(s).
+  [t=0.001785s, 11484 KB] Search time: 0.000142s
+  [t=0.001785s, 11484 KB] Total time: 0.001785s
+
+=== easy / hff ===
+  [t=0.001706s, 11484 KB] Actual search time: 0.000100s
+  [t=0.001715s, 11484 KB] Plan length: 6 step(s).
+  [t=0.001715s, 11484 KB] Plan cost: 2
+  [t=0.001715s, 11484 KB] Expanded 7 state(s).
+  [t=0.001715s, 11484 KB] Search time: 0.000227s
+  [t=0.001715s, 11484 KB] Total time: 0.001715s
+
+=== easy / hadd ===
+  [t=0.001701s, 11484 KB] Actual search time: 0.000092s
+  [t=0.001711s, 11484 KB] Plan length: 6 step(s).
+  [t=0.001711s, 11484 KB] Plan cost: 2
+  [t=0.001711s, 11484 KB] Expanded 7 state(s).
+  [t=0.001711s, 11484 KB] Search time: 0.000265s
+  [t=0.001711s, 11484 KB] Total time: 0.001711s
+
+=== medium / blind ===
+  [t=0.001729s, 11484 KB] Actual search time: 0.000143s
+  [t=0.001741s, 11484 KB] Plan length: 14 step(s).
+  [t=0.001741s, 11484 KB] Plan cost: 4
+  [t=0.001741s, 11484 KB] Expanded 38 state(s).
+  [t=0.001741s, 11484 KB] Search time: 0.000222s
+  [t=0.001741s, 11484 KB] Total time: 0.001741s
+
+=== medium / hff ===
+  [t=0.002000s, 11484 KB] Actual search time: 0.000230s
+  [t=0.002018s, 11484 KB] Plan length: 14 step(s).
+  [t=0.002018s, 11484 KB] Plan cost: 4
+  [t=0.002018s, 11484 KB] Expanded 19 state(s).
+  [t=0.002018s, 11484 KB] Search time: 0.000369s
+  [t=0.002018s, 11484 KB] Total time: 0.002018s
+
+=== medium / hadd ===
+  [t=0.001764s, 11484 KB] Actual search time: 0.000214s
+  [t=0.001776s, 11484 KB] Plan length: 16 step(s).
+  [t=0.001776s, 11484 KB] Plan cost: 6
+  [t=0.001776s, 11484 KB] Expanded 18 state(s).
+  [t=0.001776s, 11484 KB] Search time: 0.000291s
+  [t=0.001776s, 11484 KB] Total time: 0.001776s
+
+=== hard / blind ===
+  [t=0.002189s, 11484 KB] Actual search time: 0.000533s
+  [t=0.002201s, 11484 KB] Plan length: 17 step(s).
+  [t=0.002201s, 11484 KB] Plan cost: 13
+  [t=0.002201s, 11484 KB] Expanded 169 state(s).
+  [t=0.002201s, 11484 KB] Search time: 0.000612s
+  [t=0.002201s, 11484 KB] Total time: 0.002201s
+
+=== hard / hff ===
+  [t=0.001995s, 11484 KB] Actual search time: 0.000211s
+  [t=0.002004s, 11484 KB] Plan length: 12 step(s).
+  [t=0.002004s, 11484 KB] Plan cost: 16
+  [t=0.002004s, 11484 KB] Expanded 15 state(s).
+  [t=0.002004s, 11484 KB] Search time: 0.000308s
+  [t=0.002004s, 11484 KB] Total time: 0.002004s
+
+=== hard / hadd ===
+  [t=0.001905s, 11484 KB] Actual search time: 0.000168s
+  [t=0.001914s, 11484 KB] Plan length: 12 step(s).
+  [t=0.001914s, 11484 KB] Plan cost: 16
+  [t=0.001914s, 11484 KB] Expanded 15 state(s).
+  [t=0.001914s, 11484 KB] Search time: 0.000250s
+  [t=0.001914s, 11484 KB] Total time: 0.001914s
+
