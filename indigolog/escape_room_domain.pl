@@ -27,7 +27,24 @@ cache(_) :- fail.
 
 %% ------------------------------------------------------------
 %% Relational fluents (mirror the PDDL predicates).
+%%
+%% All declared dynamic: the real interpreter's projector
+%% (eval_bat.pl) evaluates holds(F, []) by calling F directly as a
+%% plain Prolog goal. Instance files only state facts for fluents
+%% that are TRUE in s0 (closed-world assumption for the rest) --
+%% without "dynamic", calling e.g. unlocked(l1) when NO unlocked/1
+%% fact exists anywhere throws "Unknown procedure" instead of just
+%% failing. Declaring dynamic makes an absent fact correctly mean
+%% "false" rather than a hard error.
 %% ------------------------------------------------------------
+:- dynamic(at/1).
+:- dynamic(has/1).
+:- dynamic(item_at/2).
+:- dynamic(unlocked/1).
+:- dynamic(known_code/1).
+:- dynamic(blocked/2).
+:- dynamic(depth_used/1).
+
 rel_fluent(at(_)).            % at(Room)          -- agent's current room
 rel_fluent(has(_)).           % has(Item)         -- agent carries Item
 rel_fluent(item_at(_,_)).     % item_at(Item,Room)
