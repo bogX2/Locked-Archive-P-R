@@ -118,33 +118,29 @@ proc(control_simple,
 proc(control(simple), control_simple).   % course-style alias (see main_*.pl)
 
 %% ------------------------------------------------------------
-%% world_changed: set true by either exogenous event, used only by
-%% the Reactive Controller below to know when to re-search (mirrors
-%% sokoban.pl's "world_updated" / taxi.pl's "has_changed" fluent).
-%% Uses causes_val/4 (NOT causes_true/3), matching the convention
-%% indigolog_plain.pl's own projector actually understands.
+%% Reactive Controller: re-decides one action at a time, checking
+%% before each whether the goal already holds.
+%%
+%% IMPORTANT: gexec/2 and unset/1 (used in sokoban.pl's and
+%% taxi.pl's reactive controllers) are NOT part of
+%% interpreters/indigolog_plain.pl -- confirmed by reading its
+%% actual source, which only defines: conc, pconc, iconc, ndet, if,
+%% while, star, pi, ?, proc, interrupt/2, interrupt/3 and
+%% prioritized_interrupts. sokoban.pl/taxi.pl must be loaded against
+%% the FULLER indigolog.pl (as their own main.pl does, via
+%% "dir(indigolog, F)", not "dir(indigolog_plain, F)"), where gexec/
+%% set/unset are presumably provided by additional interpreter
+%% modules not present in the plain variant. Since main_*.pl here
+%% loads indigolog_plain specifically, the Reactive Controller is
+%% built only from confirmed-available constructs: each interrupt
+%% cycle takes exactly one action via any_action while the goal
+%% isn't reached yet, naturally picking up any state changes from
+%% exogenous events (hint_revealed, door_jams) before every single
+%% decision -- interrupt(Trigger, Body) is itself just
+%% "while(interrupts=running, if(Trigger, Body, ?(neg(true))))",
+%% so this loops correctly on its own without any extra machinery.
 %% ------------------------------------------------------------
-prim_fluent(world_changed).
-causes_val(hint_revealed(_), world_changed, true, true).
-causes_val(door_jams(_,_),   world_changed, true, true).
-
-%% ------------------------------------------------------------
-%% Reactive Controller: re-searches for a full plan whenever an
-%% exogenous event has changed the world, exactly the pattern
-%% confirmed working in sokoban.pl's control(reactive):
-%%   prioritized_interrupts([
-%%     interrupt(Cond, [unset(Flag), gexec(neg(Flag), search(Task))])
-%%   ])
-%% gexec(Cond, Program) keeps executing Program as long as Cond
-%% holds, aborting and letting the interrupt re-fire the moment it
-%% doesn't (i.e. the moment world_changed becomes true again).
-%% ------------------------------------------------------------
-proc(control_reactive, [
-  prioritized_interrupts([
-    interrupt(neg(goal_reached), [
-      unset(world_changed),
-      gexec(neg(world_changed), search(escape_task))
-    ])
-  ])
-]).
+proc(control_reactive, prioritized_interrupts([
+  interrupt(neg(goal_reached), any_action)
+])).
 proc(control(reactive), control_reactive).   % course-style alias (see main_*.pl)
