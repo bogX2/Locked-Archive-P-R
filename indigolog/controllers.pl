@@ -32,43 +32,62 @@ is_lock(L) :- code_lock(L).
 
 %% ------------------------------------------------------------
 %% any_action: nondeterministically perform exactly ONE primitive
-%% world action, restricted by type to keep the search space
-%% small. Whether the chosen action is actually legal in the
-%% current situation is decided automatically by the interpreter
-%% via poss/2 in escape_room_domain.pl -- we only restrict the
-%% TYPES of the arguments here.
-%%
-%% pi/2 nested form, confirmed working against a real, complete,
-%% successfully-graded course project (sokoban.pl's move_somewhere/
-%% push_something/slip_something use exactly this nested style,
-%% e.g. "pi(l1, [..., pi(l2, [...])])").
+%% world action. Broken into separate NAMED sub-procedures combined
+%% via ndet/2 over the NAMES -- exactly the structure used (and
+%% confirmed working) in sokoban.pl's "do_something":
+%%   proc(do_something, ndet(move_somewhere, ndet(slip_something, push_something))).
+%% An earlier version inlined the full pi(...) tree directly as
+%% ndet/2's arguments instead of through named proc/2 references;
+%% that structural difference is the most likely remaining cause of
+%% the search never terminating (the "pick_up repeated forever"
+%% trace), since it is the one clear structural deviation left from
+%% a real, working reference project doing the exact same kind of
+%% "pick one of N action templates" pattern.
 %% ------------------------------------------------------------
-proc(any_action,
-  ndet(
-    pi(r1, pi(r2, pi(l,
-      [ ?(room(r1)), ?(room(r2)), ?(is_lock(l)), ?(neg(last_room(r2))), move(r1,r2,l) ]
-    ))),
-  ndet(
-    pi(i, pi(r,
-      [ ?(item(i)), ?(room(r)), pick_up(i,r) ]
-    )),
-  ndet(
-    pi(i1, pi(i2, pi(i3,
-      [ ?(item(i1)), ?(item(i2)), ?(item(i3)), combine(i1,i2,i3) ]
-    ))),
-  ndet(
-    pi(l, pi(r,
-      [ ?(is_lock(l)), ?(room(r)), read_clue(l,r) ]
-    )),
-  ndet(
-    pi(l, pi(i,
-      [ ?(is_lock(l)), ?(item(i)), unlock_with_key(l,i) ]
-    )),
-    pi(l,
-      [ ?(is_lock(l)), unlock_with_code(l) ]
-    )
-  ))))
+proc(do_move,
+  pi(r1, pi(r2, pi(l,
+    [ ?(room(r1)), ?(room(r2)), ?(is_lock(l)), ?(neg(last_room(r2))), move(r1,r2,l) ]
+  )))
+).
+
+proc(do_pick_up,
+  pi(i, pi(r,
+    [ ?(item(i)), ?(room(r)), ?(neg(has(i))), pick_up(i,r) ]
+  ))
+).
+
+proc(do_combine,
+  pi(i1, pi(i2, pi(i3,
+    [ ?(item(i1)), ?(item(i2)), ?(item(i3)), combine(i1,i2,i3) ]
+  )))
+).
+
+proc(do_read_clue,
+  pi(l, pi(r,
+    [ ?(is_lock(l)), ?(room(r)), ?(neg(known_code(l))), read_clue(l,r) ]
+  ))
+).
+
+proc(do_unlock_key,
+  pi(l, pi(i,
+    [ ?(is_lock(l)), ?(item(i)), ?(neg(unlocked(l))), unlock_with_key(l,i) ]
+  ))
+).
+
+proc(do_unlock_code,
+  pi(l,
+    [ ?(is_lock(l)), ?(neg(unlocked(l))), unlock_with_code(l) ]
   )
+).
+
+proc(any_action,
+  ndet(do_move,
+  ndet(do_pick_up,
+  ndet(do_combine,
+  ndet(do_read_clue,
+  ndet(do_unlock_key,
+       do_unlock_code
+  )))))
 ).
 
 %% ------------------------------------------------------------
