@@ -121,26 +121,32 @@ proc(control(simple), control_simple).   % course-style alias (see main_*.pl)
 %% Reactive Controller: re-decides one action at a time, checking
 %% before each whether the goal already holds.
 %%
-%% IMPORTANT: gexec/2 and unset/1 (used in sokoban.pl's and
-%% taxi.pl's reactive controllers) are NOT part of
-%% interpreters/indigolog_plain.pl -- confirmed by reading its
-%% actual source, which only defines: conc, pconc, iconc, ndet, if,
-%% while, star, pi, ?, proc, interrupt/2, interrupt/3 and
-%% prioritized_interrupts. sokoban.pl/taxi.pl must be loaded against
-%% the FULLER indigolog.pl (as their own main.pl does, via
-%% "dir(indigolog, F)", not "dir(indigolog_plain, F)"), where gexec/
-%% set/unset are presumably provided by additional interpreter
-%% modules not present in the plain variant. Since main_*.pl here
-%% loads indigolog_plain specifically, the Reactive Controller is
-%% built only from confirmed-available constructs: each interrupt
-%% cycle takes exactly one action via any_action while the goal
-%% isn't reached yet, naturally picking up any state changes from
-%% exogenous events (hint_revealed, door_jams) before every single
-%% decision -- interrupt(Trigger, Body) is itself just
-%% "while(interrupts=running, if(Trigger, Body, ?(neg(true))))",
-%% so this loops correctly on its own without any extra machinery.
+%% IMPORTANT: any_action is wrapped in search/1 here, NOT called
+%% bare. Without it, the online step-by-step trans/4 semantics
+%% commits to pi's existential choices (e.g. which room r2 to move
+%% to) ONE MICRO-STEP AT A TIME across separate indigo/2 iterations
+%% -- if a partially-committed choice later turns out invalid (e.g.
+%% r2 ends up equal to r1, so move(r1,r1,_) has no matching
+%% connected/3 fact), there is no way to backtrack anymore, since
+%% the choice was already locked in through an earlier, separate
+%% top-level step (confirmed by manually tracing trans/4 step by
+%% step during debugging). search(any_action) fixes this by fully
+%% resolving ALL of any_action's internal pi/ndet choices (with
+%% complete backtracking) before ever committing a single real
+%% action -- exactly the same reason control_simple wraps
+%% escape_task in search(...).
+%%
+%% gexec/2 and unset/1 (used in sokoban.pl's and taxi.pl's reactive
+%% controllers) are NOT part of interpreters/indigolog_plain.pl --
+%% confirmed by reading its actual source, which only defines: conc,
+%% pconc, iconc, ndet, if, while, star, pi, ?, proc, interrupt/2,
+%% interrupt/3 and prioritized_interrupts. sokoban.pl/taxi.pl load
+%% the FULLER indigolog.pl instead (via "dir(indigolog, F)", not
+%% "dir(indigolog_plain, F)"), where gexec/set/unset are presumably
+%% provided by additional interpreter modules not present in the
+%% plain variant.
 %% ------------------------------------------------------------
 proc(control_reactive, prioritized_interrupts([
-  interrupt(neg(goal_reached), any_action)
+  interrupt(neg(goal_reached), search(any_action))
 ])).
 proc(control(reactive), control_reactive).   % course-style alias (see main_*.pl)
