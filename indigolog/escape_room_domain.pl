@@ -87,8 +87,7 @@ exog_action(door_jams(_,_)).         % door_jams(R1,R2)    -- a door becomes blo
 poss(move(R1,R2,L), and(at(R1),
                      and(connected(R1,R2,L),
                      and(unlocked(L),
-                     and(neg(blocked(R1,R2)),
-                         neg(depth_exhausted)))))).
+                         neg(blocked(R1,R2)))))).
 
 poss(pick_up(I,R), and(at(R), item_at(I,R))).
 
@@ -105,26 +104,44 @@ poss(hint_revealed(_), true).
 poss(door_jams(_,_), true).
 
 %% ------------------------------------------------------------
-%% exog_occurs/1: MANDATORY interpreter hook. indigolog_plain's
-%% online execution loop calls this after every action to check
-%% whether any exogenous event has occurred in the "real world"
-%% and should be incorporated before the next step. With no live
-%% event source connected, we simply report "nothing happened" --
-%% this is what lets control_simple / control_reactive run without
-%% external input. Declared dynamic so demo_exog_harness.pl can
-%% cleanly REPLACE this fallback (retractall + reassert in the
-%% correct clause order) to script hint_revealed/door_jams for the
-%% live presentation demo, instead of just adding a clause after
-%% it (which would never be reached, since this trivial "always []"
-%% clause would match first).
+%% exog_occurs/1: MANDATORY interpreter hook. Confirmed against the
+%% course's own lab files (elevator_01.pl / elevator_02.pl):
+%%   - Signature is exog_occurs(Action) -- ONE action, NOT a list.
+%%   - "Nothing happened" is expressed by FAILING, not by
+%%     succeeding with some empty/trivial term (elevator_01.pl,
+%%     which has no exogenous events at all, uses exactly
+%%     "exog_occurs(_) :- fail."). Succeeding binds Action to the
+%%     specific exogenous action that just occurred (elevator_02.pl
+%%     delegates to the interactive ask_exog_occurs/1 for that).
+%% Declared dynamic so demo_exog_harness.pl can cleanly REPLACE this
+%% fallback (retractall + reassert in the correct clause order) to
+%% script hint_revealed/door_jams for the live presentation demo,
+%% instead of just adding a clause after it (which would never be
+%% reached, since this catch-all "always fail" clause matches --
+%% well, fails -- last regardless, but a scripted clause added
+%% AFTER it would never even be tried once this one already failed
+%% the whole predicate for that call; it must come BEFORE).
 %% ------------------------------------------------------------
 :- dynamic(exog_occurs/1).
-exog_occurs([]).
+exog_occurs(_) :- fail.
 
-%% depth_exhausted/0 is a convenience predicate used only inside
-%% poss/2, defined in terms of the depth_used/1 fluent and the
-%% instance-specific max_depth/1 fact (see instance_*.pl).
-depth_exhausted :- depth_used(N), max_depth(Max), N >= Max.
+%% ------------------------------------------------------------
+%% NOTE on depth bounding: an earlier version of this file tried to
+%% bound search depth with a "depth_used/1" counting fluent and a
+%% derived depth_exhausted/0 check inside poss(move,...). That
+%% approach relied on a causes_true clause body directly CALLING
+%% depth_used(N) as a plain Prolog goal to read "the current count"
+%% -- which is exactly the unbound-argument / regression-vs-
+%% progression pitfall documented in RESULTS.md ("a real bug found
+%% and fixed along the way"): in a regression-based projector like
+%% eval_bat.pl, that bare call only ever sees the ORIGINAL s0 fact
+%% (depth_used(0)), never the true count for a longer history, so
+%% the bound silently never triggers. Depth bounding is therefore
+%% done structurally in the CONTROL PROGRAM instead (see
+%% bounded_task/1 in controllers.pl), which sidesteps the issue
+%% entirely by counting down through ordinary program recursion
+%% rather than through a fluent.
+%% ------------------------------------------------------------
 
 %% ------------------------------------------------------------
 %% Successor state axioms, expressed via causes_true/causes_false
@@ -133,7 +150,6 @@ depth_exhausted :- depth_used(N), max_depth(Max), N >= Max.
 causes_true(at(R2),  move(_R1,R2,_L), true).
 causes_false(at(R1), move(R1,_R2,_L), true).
 
-causes_true(depth_used(N1), move(_,_,_), N1 is N + 1) :- depth_used(N).
 
 causes_true(has(I),       pick_up(I,_R), true).
 causes_false(item_at(I,R), pick_up(I,R), true).

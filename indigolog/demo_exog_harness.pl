@@ -20,12 +20,14 @@
 %%      branch, backtracks to r2, and instead opens the east
 %%      branch (l_e1 / l_e2 / l_e3) to reach r8.
 %%
-%% CONFIRMED interpreter hook (indigolog_plain.pl calls this after
-%% EVERY primitive action, expecting a list of exogenous actions
-%% that just occurred -- normally [], see escape_room_domain.pl):
-%%
-%%   exog_occurs(List)
-%%
+%% CONFIRMED interpreter hook (from the course's own elevator_01.pl /
+%% elevator_02.pl lab files): the interpreter calls exog_occurs(A)
+%% after every primitive action.
+%%   - "Nothing happened" = exog_occurs(A) FAILS (not "succeeds with
+%%     []" -- that was an earlier, wrong guess before these lab
+%%     files were available).
+%%   - "Something happened" = exog_occurs(A) SUCCEEDS with A bound
+%%     to the single exogenous action that occurred.
 %% We piggyback the action counter directly on this call (it is
 %% invoked exactly once per world action by the interpreter's own
 %% loop), so no separate "notify after each action" hook is needed.
@@ -45,19 +47,17 @@ init_demo_script :-
   assertz(exog_script(4, door_jams(r3,r4))),
   retractall(actions_done(_)),
   assertz(actions_done(0)),
-  %% Replace the trivial "always []" fallback from escape_room_domain.pl
-  %% with the scripted version, in the right clause order (specific
-  %% case first, so it isn't shadowed by a catch-all).
+  %% Replace the base "exog_occurs(_) :- fail." fallback from
+  %% escape_room_domain.pl with the scripted version, in the right
+  %% clause order (specific case first, so it isn't shadowed).
   retractall(exog_occurs(_)),
-  assertz((exog_occurs(L) :-
+  assertz((exog_occurs(A) :-
              retract(actions_done(N)),
              N1 is N + 1,
              assertz(actions_done(N1)),
-             ( exog_script(N1, Exog)
-             -> L = [Exog],
-                format("~n>>> [demo harness] injecting exogenous event: ~w~n", [Exog])
-             ;  L = []
-             ))).
+             exog_script(N1, A),
+             format("~n>>> [demo harness] injecting exogenous event: ~w~n", [A]))),
+  assertz((exog_occurs(_) :- fail)).
 
 %% ------------------------------------------------------------
 %% run_demo/0: convenience entry point for the live presentation.
