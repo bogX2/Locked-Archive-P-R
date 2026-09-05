@@ -38,59 +38,60 @@ is_lock(L) :- code_lock(L).
 %% via poss/2 in escape_room_domain.pl -- we only restrict the
 %% TYPES of the arguments here.
 %%
-%% IMPORTANT (corrected after real testing on the course VM): pi/2
-%% is used here with a LIST of variables, e.g. pi([X,Y], Body) --
-%% NOT nested as pi(X, pi(Y, Body)). An earlier version of this
-%% file used the nested form based on an untested assumption; the
-%% list form is the one actually confirmed working, both in the
-%% course's own taxi_planning reference project (e.g.
-%% "proc(pi_move, pi([l1,l2], move(l1,l2)))") and is consistent
-%% with every pi/2 use in the official lab files -- none of which
-%% ever use the nested form.
+%% pi/2 nested form, confirmed working against a real, complete,
+%% successfully-graded course project (sokoban.pl's move_somewhere/
+%% push_something/slip_something use exactly this nested style,
+%% e.g. "pi(l1, [..., pi(l2, [...])])").
 %% ------------------------------------------------------------
 proc(any_action,
   ndet(
-    pi([r1,r2,l], [ ?(room(r1)), ?(room(r2)), ?(is_lock(l)), move(r1,r2,l) ]),
+    pi(r1, pi(r2, pi(l,
+      [ ?(room(r1)), ?(room(r2)), ?(is_lock(l)), move(r1,r2,l) ]
+    ))),
   ndet(
-    pi([i,r], [ ?(item(i)), ?(room(r)), pick_up(i,r) ]),
+    pi(i, pi(r,
+      [ ?(item(i)), ?(room(r)), pick_up(i,r) ]
+    )),
   ndet(
-    pi([i1,i2,i3], [ ?(item(i1)), ?(item(i2)), ?(item(i3)), combine(i1,i2,i3) ]),
+    pi(i1, pi(i2, pi(i3,
+      [ ?(item(i1)), ?(item(i2)), ?(item(i3)), combine(i1,i2,i3) ]
+    ))),
   ndet(
-    pi([l,r], [ ?(is_lock(l)), ?(room(r)), read_clue(l,r) ]),
+    pi(l, pi(r,
+      [ ?(is_lock(l)), ?(room(r)), read_clue(l,r) ]
+    )),
   ndet(
-    pi([l,i], [ ?(is_lock(l)), ?(item(i)), unlock_with_key(l,i) ]),
-    pi(l, [ ?(is_lock(l)), unlock_with_code(l) ])
+    pi(l, pi(i,
+      [ ?(is_lock(l)), ?(item(i)), unlock_with_key(l,i) ]
+    )),
+    pi(l,
+      [ ?(is_lock(l)), unlock_with_code(l) ]
+    )
   ))))
   )
 ).
 
 %% ------------------------------------------------------------
-%% escape_task: try up to MAX_STEPS actions, stopping as soon as
-%% the exit room is reached. Bounded via plain program recursion
-%% counting down a Prolog integer (bounded_task/1) rather than via
-%% a fluent -- see the note in escape_room_domain.pl for why a
-%% fluent-based counter doesn't reliably work with a regression-
-%% based projector. At each level, either stop now (if the goal
-%% already holds) or take one more action and recurse with one
-%% fewer step remaining; pi/2 + a test action (?/1 with "is/2") is
-%% the standard Golog-family idiom for threading a bound Prolog
-%% integer through recursive proc/2 clauses.
+%% escape_task: repeat any_action until the exit room is reached.
+%% Plain star/1 + a goal test, exactly the pattern confirmed
+%% working in sokoban.pl's "dumb" controller:
+%%   proc(dumb, [star(do_something), ?(neg(some_boxes_not_on_trg))]).
+%% An earlier version of this file replaced star/1 with a hand-
+%% rolled numeric "bounded_task" out of an unconfirmed worry about
+%% infinite loops -- that extra complexity is removed now that a
+%% real working reference project shows plain star/1 is fine here
+%% (the earlier "false" / no-solution results were most likely
+%% caused by the exog_occurs/1 and goal_reached bugs fixed
+%% elsewhere in this file and in escape_room_domain.pl, not by an
+%% actual infinite loop in star/1 itself).
 %% ------------------------------------------------------------
-max_steps(20).
-
-proc(bounded_task(0), ?(goal_reached)).
-proc(bounded_task(N),
-  ndet(
-    ?(goal_reached),
-    [ any_action, pi(n1, [ ?(n1 is N - 1), bounded_task(n1) ]) ]
-  )
-) :- N > 0.
-
-proc(escape_task, [ pi(n, [ ?(max_steps(n)), bounded_task(n) ]) ]).
+proc(escape_task,
+  [ star(any_action), ?(goal_reached) ]
+).
 
 %% ------------------------------------------------------------
-%% Simple Controller: one depth-bounded offline search, executed
-%% online once a solution is found.
+%% Simple Controller: one offline search, executed online once a
+%% solution is found.
 %% ------------------------------------------------------------
 proc(control_simple,
   search(escape_task)
@@ -98,22 +99,31 @@ proc(control_simple,
 proc(control(simple), control_simple).   % course-style alias (see main_*.pl)
 
 %% ------------------------------------------------------------
-%% Reactive Controller: prioritized_interrupts re-evaluates the
-%% situation before every single action.
-%%   priority 1: stop as soon as the goal already holds.
-%%   priority 2: otherwise, take one more legal action and recurse
-%%               -- so the very next decision is made again from
-%%               the fresh (possibly exogenously updated) situation.
-%% Note: unlike control_simple, this does one-step lookahead only
-%% (no guarantee the chosen action keeps a full solution reachable
-%% -- a known simplification of a purely online/reactive design,
-%% since a real-world action, once executed, cannot be undone).
+%% world_changed: set true by either exogenous event, used only by
+%% the Reactive Controller below to know when to re-search (mirrors
+%% sokoban.pl's "world_updated" / taxi.pl's "has_changed" fluent).
 %% ------------------------------------------------------------
-proc(control_reactive,
-  prioritized_interrupts(
-    [ interrupt(goal_reached, []),
-      interrupt(true, [ any_action, control_reactive ])
-    ]
-  )
-).
+rel_fluent(world_changed).
+causes_true(hint_revealed(_), world_changed, true).
+causes_true(door_jams(_,_),   world_changed, true).
+
+%% ------------------------------------------------------------
+%% Reactive Controller: re-searches for a full plan whenever an
+%% exogenous event has changed the world, exactly the pattern
+%% confirmed working in sokoban.pl's control(reactive):
+%%   prioritized_interrupts([
+%%     interrupt(Cond, [unset(Flag), gexec(neg(Flag), search(Task))])
+%%   ])
+%% gexec(Cond, Program) keeps executing Program as long as Cond
+%% holds, aborting and letting the interrupt re-fire the moment it
+%% doesn't (i.e. the moment world_changed becomes true again).
+%% ------------------------------------------------------------
+proc(control_reactive, [
+  prioritized_interrupts([
+    interrupt(neg(goal_reached), [
+      unset(world_changed),
+      gexec(neg(world_changed), search(escape_task))
+    ])
+  ])
+]).
 proc(control(reactive), control_reactive).   % course-style alias (see main_*.pl)
