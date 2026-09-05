@@ -171,6 +171,18 @@ causes_true(blocked(R2,R1), door_jams(R1,R2), true).  % doors are symmetric
 %% Reasoning-task helper predicates (used by reasoning_tasks.pl)
 %% ------------------------------------------------------------
 %% goal_reached: true once the agent stands in the designated
-%% exit room for the loaded instance.
-goal_reached :- at(R), exit_room(R).
+%% exit room for the loaded instance. Defined as a proc/2
+%% abbreviation (NOT a plain Prolog ":-" rule) so the interpreter
+%% evaluates it correctly against whatever situation it is actually
+%% reasoning about (in particular, the HYPOTHETICAL situations
+%% explored during an offline search/1, not just the live current
+%% one) -- this mirrors exactly how the course's own elevator_01.pl
+%% defines its abbreviations, e.g. "proc(pending_floor(N), light(N)
+%% = on)." rather than a bare ":-" clause. A plain ":-" rule calling
+%% a fluent directly bypasses the interpreter's situation-threading
+%% and only ever reflects the real, currently-executing situation --
+%% which made search(escape_task) unable to ever recognize the goal
+%% as reached during its own internal hypothetical exploration.
+%% ------------------------------------------------------------
+proc(goal_reached, some(r, and(exit_room(r), at(r)))).
 
