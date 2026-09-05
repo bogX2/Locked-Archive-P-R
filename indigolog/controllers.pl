@@ -38,38 +38,28 @@ is_lock(L) :- code_lock(L).
 %% via poss/2 in escape_room_domain.pl -- we only restrict the
 %% TYPES of the arguments here.
 %%
-%% IMPORTANT (lesson learned the hard way): pi/2 must be NESTED,
-%% e.g. pi(X, pi(Y, Body)) -- passing a variable list such as
-%% pi([X,Y], Body) is silently accepted by SWI-Prolog's parser
-%% but is NOT how the IndiGolog interpreter's Trans/Final clauses
-%% for pi/2 are defined, and it will not bind the variables as
-%% expected. Every multi-argument action below is therefore
-%% built from nested pi/2 calls.
+%% IMPORTANT (corrected after real testing on the course VM): pi/2
+%% is used here with a LIST of variables, e.g. pi([X,Y], Body) --
+%% NOT nested as pi(X, pi(Y, Body)). An earlier version of this
+%% file used the nested form based on an untested assumption; the
+%% list form is the one actually confirmed working, both in the
+%% course's own taxi_planning reference project (e.g.
+%% "proc(pi_move, pi([l1,l2], move(l1,l2)))") and is consistent
+%% with every pi/2 use in the official lab files -- none of which
+%% ever use the nested form.
 %% ------------------------------------------------------------
 proc(any_action,
   ndet(
-    pi(r1, pi(r2, pi(l,
-      [ ?(room(r1)), ?(room(r2)), ?(is_lock(l)), move(r1,r2,l) ]
-    ))),
+    pi([r1,r2,l], [ ?(room(r1)), ?(room(r2)), ?(is_lock(l)), move(r1,r2,l) ]),
   ndet(
-    pi(i, pi(r,
-      [ ?(item(i)), ?(room(r)), pick_up(i,r) ]
-    )),
+    pi([i,r], [ ?(item(i)), ?(room(r)), pick_up(i,r) ]),
   ndet(
-    pi(i1, pi(i2, pi(i3,
-      [ ?(item(i1)), ?(item(i2)), ?(item(i3)), combine(i1,i2,i3) ]
-    ))),
+    pi([i1,i2,i3], [ ?(item(i1)), ?(item(i2)), ?(item(i3)), combine(i1,i2,i3) ]),
   ndet(
-    pi(l, pi(r,
-      [ ?(is_lock(l)), ?(room(r)), read_clue(l,r) ]
-    )),
+    pi([l,r], [ ?(is_lock(l)), ?(room(r)), read_clue(l,r) ]),
   ndet(
-    pi(l, pi(i,
-      [ ?(is_lock(l)), ?(item(i)), unlock_with_key(l,i) ]
-    )),
-    pi(l,
-      [ ?(is_lock(l)), unlock_with_code(l) ]
-    )
+    pi([l,i], [ ?(is_lock(l)), ?(item(i)), unlock_with_key(l,i) ]),
+    pi(l, [ ?(is_lock(l)), unlock_with_code(l) ])
   ))))
   )
 ).
