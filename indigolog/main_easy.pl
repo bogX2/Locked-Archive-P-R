@@ -51,26 +51,27 @@ main(C) :- indigolog(control(C)).
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Usage (from a fresh swipl session, AFTER config.pl + this file loaded):
 %
-%   ?- initialize(evaluator).   % MANDATORY before first run
+%   ?- initialize.      % MANDATORY before first run (NOT initialize(evaluator))
 %   ?- main.                    % interactive controller picker
 %   ?- main(simple).            % or directly: control_simple
 %   ?- main(reactive).          % or directly: control_reactive
 %
-% Reasoning tasks (course-standard, once initialize(evaluator) has run):
+% Reasoning tasks (course-standard, once initialize has run):
 %
 %   Legality -- indigolog/1 takes the action sequence in NATURAL order
 %   (first action executed first), exactly as you'd write it:
 %     ?- indigolog([pick_up(key1,r1), unlock_with_key(l1,key1), move(r1,r2,l1),
 %                   read_clue(l2,r2), unlock_with_code(l2), move(r2,r3,l2)]).
 %
-%   Projection -- eval/3 takes the action sequence in REVERSED order
+%   Projection -- holds/2 takes the action sequence in REVERSED order
 %   (most recently executed action FIRST -- mirrors do(a,s) nesting).
-%   This is the opposite convention from indigolog/1 above, and easy to
-%   get backwards: the SAME 6-action plan as above, reversed, checking
-%   at(r3) holds at the end:
-%     ?- eval(at(r3),
+%   (NOTE: eval/3 does NOT exist in indigolog_plain.pl -- that is an
+%   eval_bat.pl-only predicate we are not loading; holds/2 is the
+%   real, confirmed one here.) This is the opposite convention from
+%   indigolog/1 above, and easy to get backwards: the SAME 6-action
+%   plan as above, reversed, checking at(r3) holds at the end:
+%     ?- holds(at(r3),
 %             [move(r2,r3,l2), unlock_with_code(l2), read_clue(l2,r2),
-%              move(r1,r2,l1), unlock_with_key(l1,key1), pick_up(key1,r1)],
-%             true).
+%              move(r1,r2,l1), unlock_with_key(l1,key1), pick_up(key1,r1)]).
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % EOF

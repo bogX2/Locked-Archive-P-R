@@ -24,65 +24,63 @@
 %% ============================================================
 
 %% ------------------------------------------------------------
-%% Small typing helper: true for any object that is either kind
-%% of lock. Defined as a proc/2 abbreviation (or/2 over the two
-%% static relations), NOT a plain Prolog ":-" rule -- same fix,
-%% same reason, as goal_reached in escape_room_domain.pl: a bare
-%% ":-" predicate used inside a ?/1 test bypasses the interpreter's
-%% own condition-evaluation machinery and gets mishandled during
-%% offline search's hypothetical exploration (confirmed by a real
-%% hang inside holds/2's generic term-substitution handling for
-%% "is_lock" when used this way).
-%% ------------------------------------------------------------
-proc(is_lock(L), or(key_lock(L), code_lock(L))).
-
-%% ------------------------------------------------------------
 %% any_action: nondeterministically perform exactly ONE primitive
 %% world action. Broken into separate NAMED sub-procedures combined
 %% via ndet/2 over the NAMES -- exactly the structure used (and
 %% confirmed working) in sokoban.pl's "do_something":
 %%   proc(do_something, ndet(move_somewhere, ndet(slip_something, push_something))).
-%% An earlier version inlined the full pi(...) tree directly as
-%% ndet/2's arguments instead of through named proc/2 references;
-%% that structural difference is the most likely remaining cause of
-%% the search never terminating (the "pick_up repeated forever"
-%% trace), since it is the one clear structural deviation left from
-%% a real, working reference project doing the exact same kind of
-%% "pick one of N action templates" pattern.
+%%
+%% IMPORTANT (further correction): the earlier version of this file
+%% added explicit type-checking tests like ?(room(r1)), ?(item(i)),
+%% ?(is_lock(l)) before each action. sokoban.pl's own move_somewhere/
+%% push_something/slip_something never do this -- they rely
+%% entirely on FLUENTS (self_at, adjacent, at/2, is_slippery) to
+%% naturally constrain pi's existential choices, and let poss/2
+%% (triggered automatically when the interpreter tries to execute
+%% the primitive action itself) do all remaining legality checking.
+%% Bare static-fact "type" predicates used directly as a ?/1
+%% argument are exactly the pattern that broke earlier (is_lock,
+%% goal_reached) -- removing them entirely, rather than continuing
+%% to individually wrap each one in proc/2, is both simpler and
+%% matches the proven reference structure more closely. The only
+%% tests kept below are genuine FLUENT conditions (has/1,
+%% unlocked/1, known_code/1, last_room/1) needed to prevent
+%% pointless repeats/cycles -- everything else is left for poss/2
+%% (in escape_room_domain.pl) to check when the action is attempted.
 %% ------------------------------------------------------------
 proc(do_move,
   pi(r1, pi(r2, pi(l,
-    [ ?(room(r1)), ?(room(r2)), ?(is_lock(l)), ?(neg(last_room(r2))), move(r1,r2,l) ]
+    [ ?(neg(last_room(r2))), move(r1,r2,l) ]
   )))
 ).
 
 proc(do_pick_up,
   pi(i, pi(r,
-    [ ?(item(i)), ?(room(r)), ?(neg(has(i))), pick_up(i,r) ]
+    [ ?(neg(has(i))), pick_up(i,r) ]
   ))
 ).
 
 proc(do_combine,
   pi(i1, pi(i2, pi(i3,
-    [ ?(item(i1)), ?(item(i2)), ?(item(i3)), combine(i1,i2,i3) ]
+    combine(i1,i2,i3)
   )))
 ).
 
 proc(do_read_clue,
   pi(l, pi(r,
-    [ ?(is_lock(l)), ?(room(r)), ?(neg(known_code(l))), read_clue(l,r) ]
+    [ ?(neg(known_code(l))), read_clue(l,r) ]
   ))
 ).
 
 proc(do_unlock_key,
   pi(l, pi(i,
-    [ ?(is_lock(l)), ?(item(i)), ?(neg(unlocked(l))), unlock_with_key(l,i) ]
+    [ ?(neg(unlocked(l))), unlock_with_key(l,i) ]
   ))
 ).
 
 proc(do_unlock_code,
   pi(l,
-    [ ?(is_lock(l)), ?(neg(unlocked(l))), unlock_with_code(l) ]
+    [ ?(neg(unlocked(l))), unlock_with_code(l) ]
   )
 ).
 
@@ -127,10 +125,12 @@ proc(control(simple), control_simple).   % course-style alias (see main_*.pl)
 %% world_changed: set true by either exogenous event, used only by
 %% the Reactive Controller below to know when to re-search (mirrors
 %% sokoban.pl's "world_updated" / taxi.pl's "has_changed" fluent).
+%% Uses causes_val/4 (NOT causes_true/3), matching the convention
+%% indigolog_plain.pl's own projector actually understands.
 %% ------------------------------------------------------------
-rel_fluent(world_changed).
-causes_true(hint_revealed(_), world_changed, true).
-causes_true(door_jams(_,_),   world_changed, true).
+prim_fluent(world_changed).
+causes_val(hint_revealed(_), world_changed, true, true).
+causes_val(door_jams(_,_),   world_changed, true, true).
 
 %% ------------------------------------------------------------
 %% Reactive Controller: re-searches for a full plan whenever an

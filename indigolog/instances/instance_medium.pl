@@ -9,7 +9,6 @@ key_lock(l1). key_lock(l3).
 code_lock(l2). code_lock(l4).
 
 exit_room(r5).
-max_depth(15).
 
 connected(r1,r2,l1). connected(r2,r1,l1).
 connected(r2,r3,l2). connected(r3,r2,l2).
@@ -52,11 +51,4 @@ initially(known_code(l4), false).
 
 initially(blocked(_,_), false).
 
-initially(depth_used(0), true).
-
-%% --- plain facts for the real interpreter (s0 = []) ---
-at(r1).
-item_at(key_a,r1).
-item_at(item_x,r2).
-item_at(item_y,r3).
-depth_used(0).
+initially(last_room(_), false).

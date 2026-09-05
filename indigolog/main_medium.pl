@@ -51,12 +51,12 @@ main(C) :- indigolog(control(C)).
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Usage (from a fresh swipl session, AFTER config.pl + this file loaded):
 %
-%   ?- initialize(evaluator).   % MANDATORY before first run
+%   ?- initialize.      % MANDATORY before first run (NOT initialize(evaluator))
 %   ?- main.                    % interactive controller picker
 %   ?- main(simple).            % or directly: control_simple
 %   ?- main(reactive).          % or directly: control_reactive
 %
-% Reasoning tasks (course-standard, once initialize(evaluator) has run):
+% Reasoning tasks (course-standard, once initialize has run):
 %
 %   Legality -- indigolog/1 takes the action sequence in NATURAL order
 %   (first action executed first), exactly as you'd write it (this is
@@ -67,6 +67,6 @@ main(C) :- indigolog(control(C)).
 %   (most recently executed action FIRST -- mirrors do(a,s) nesting).
 %   This is the opposite convention from indigolog/1 above -- the SAME
 %   14-action plan as above, reversed, checking at(r5) holds at the end:
-%     ?- eval(at(r5), [move(r4,r5,l4), unlock_with_code(l4), read_clue(l4,r4), move(r3,r4,l3), unlock_with_key(l3,key_c), combine(item_x,item_y,key_c), pick_up(item_y,r3), move(r2,r3,l2), pick_up(item_x,r2), move(r1,r2,l1), unlock_with_code(l2), unlock_with_key(l1,key_a), read_clue(l2,r1), pick_up(key_a,r1)], true).
+%     ?- holds(at(r5), [move(r4,r5,l4), unlock_with_code(l4), read_clue(l4,r4), move(r3,r4,l3), unlock_with_key(l3,key_c), combine(item_x,item_y,key_c), pick_up(item_y,r3), move(r2,r3,l2), pick_up(item_x,r2), move(r1,r2,l1), unlock_with_code(l2), unlock_with_key(l1,key_a), read_clue(l2,r1), pick_up(key_a,r1)]).
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % EOF

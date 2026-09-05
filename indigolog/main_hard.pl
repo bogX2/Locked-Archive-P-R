@@ -51,12 +51,12 @@ main(C) :- indigolog(control(C)).
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Usage (from a fresh swipl session, AFTER config.pl + this file loaded):
 %
-%   ?- initialize(evaluator).   % MANDATORY before first run
+%   ?- initialize.      % MANDATORY before first run (NOT initialize(evaluator))
 %   ?- main.                    % interactive controller picker
 %   ?- main(simple).            % or directly: control_simple
 %   ?- main(reactive).          % or directly: control_reactive
 %
-% Reasoning tasks (course-standard, once initialize(evaluator) has run):
+% Reasoning tasks (course-standard, once initialize has run):
 %
 %   This is the WEST branch (17 actions, cost 13, the PDDL-optimal
 %   route -- requires the mandatory combine puzzle). The EAST branch
@@ -69,6 +69,6 @@ main(C) :- indigolog(control(C)).
 %   Projection -- eval/3 takes the action sequence in REVERSED order
 %   (most recently executed action FIRST -- mirrors do(a,s) nesting).
 %   The SAME 17-action plan as above, reversed, checking at(r8) holds:
-%     ?- eval(at(r8), [move(r5,r8,l_w4), unlock_with_code(l_w4), read_clue(l_w4,r5), move(r4,r5,l_w3), unlock_with_key(l_w3,key_w3), combine(item_p,item_q,key_w3), pick_up(item_q,r4), move(r3,r4,l_w2), unlock_with_code(l_w2), read_clue(l_w2,r3), pick_up(item_p,r3), move(r2,r3,l_w1), unlock_with_key(l_w1,key_w1), pick_up(key_w1,r2), move(r1,r2,l0), unlock_with_key(l0,key_start), pick_up(key_start,r1)], true).
+%     ?- holds(at(r8), [move(r5,r8,l_w4), unlock_with_code(l_w4), read_clue(l_w4,r5), move(r4,r5,l_w3), unlock_with_key(l_w3,key_w3), combine(item_p,item_q,key_w3), pick_up(item_q,r4), move(r3,r4,l_w2), unlock_with_code(l_w2), read_clue(l_w2,r3), pick_up(item_p,r3), move(r2,r3,l_w1), unlock_with_key(l_w1,key_w1), pick_up(key_w1,r2), move(r1,r2,l0), unlock_with_key(l0,key_start), pick_up(key_start,r1)]).
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % EOF

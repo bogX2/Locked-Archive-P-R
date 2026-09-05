@@ -9,7 +9,6 @@ key_lock(l1).
 code_lock(l2).
 
 exit_room(r3).
-max_depth(10).
 
 connected(r1,r2,l1). connected(r2,r1,l1).
 connected(r2,r3,l2). connected(r3,r2,l2).
@@ -19,21 +18,14 @@ clue_at(l2,r2).
 combinable(_,_,_) :- fail.   % no combine puzzle in the easy instance
 
 %% ------------------------------------------------------------
-%% Initial situation, s0.
-%%
-%% TWO representations are kept in sync on purpose:
-%%
-%% 1) initially(F, true/false) facts -- consumed by the standalone
-%%    validator (reasoning_tasks.pl / _dev_only_validation.pl), used
-%%    to sanity-check the domain in this sandbox without the real
-%%    interpreter.
-%% 2) Plain fact declarations for every fluent TRUE in s0 -- this is
-%%    what the REAL course interpreter's projector (eval_bat.pl)
-%%    actually reads: holds(F, []) calls F directly as a goal, so
-%%    every TRUE-in-s0 fluent must exist as a literal fact with that
-%%    exact name/arity. Fluents that are false in s0 are simply
-%%    omitted (closed-world assumption) -- do NOT add "false" facts
-%%    here, only "true" ones.
+%% Initial situation, s0. initially(F, V) is read directly by
+%% indigolog_plain.pl's has_val/3 base case ("has_val(F, V, []) :-
+%% initially(F, V)."), so this is the ONLY representation needed --
+%% no separate plain facts. Every prim_fluent/1 declared in
+%% escape_room_domain.pl should have exactly one initially/2 clause
+%% per relevant ground instance (true ones are listed; false ones
+%% for at/1 are listed too since "at" needs exactly one room true
+%% and the rest explicitly false, unlike closed-world defaults).
 %% ------------------------------------------------------------
 initially(at(r1), true).
 initially(at(r2), false).
@@ -49,9 +41,4 @@ initially(known_code(l2), false).
 
 initially(blocked(_,_), false).
 
-initially(depth_used(0), true).
-
-%% --- plain facts for the real interpreter (s0 = []) ---
-at(r1).
-item_at(key1,r1).
-depth_used(0).
+initially(last_room(_), false).

@@ -61,19 +61,9 @@ init_demo_script :-
 
 %% ------------------------------------------------------------
 %% run_demo/0: convenience entry point for the live presentation.
-%% Loosens the depth bound of the hard instance (a forced detour
-%% around a jammed door is, by construction, longer than the
-%% pure cost-optimal west-branch plan the PDDL/IndiGolog bound was
-%% tuned for) and starts the Reactive Controller.
 %% ------------------------------------------------------------
 run_demo :-
   format("~n=== The Locked Archive -- live exogenous-event demo ===~n"),
-  ( current_predicate(max_depth/1) -> retractall(max_depth(_)) ; true ),
-  assertz(max_depth(35)),  % generous bound: base instance now needs up to 20
-                           % (see instance_hard.pl), and a forced mid-plan
-                           % reroute from a partially-explored west branch
-                           % back to a full east branch needs extra slack
-                           % on top of that.
   init_demo_script,
   initialize,              % NOT initialize(evaluator) -- confirmed on the
                            % course VM's indigolog_plain: it's arity 0.

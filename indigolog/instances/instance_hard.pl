@@ -27,14 +27,12 @@ exit_room(r8).
 %% the EAST branch (a plain pick_up+unlock). Unlike the PDDL model
 %% -- where differentiated move-cost values make west cheaper (13)
 %% than east (16) under :metric minimize(total-cost) -- IndiGolog's
-%% plain depth-bounded search has no such per-action cost metric, so
-%% it cannot itself prefer the "PDDL-optimal" branch by action count
-%% alone (east is in fact SHORTER in raw action count). max_depth is
-%% therefore set generously enough for BOTH branches to be
-%% individually reachable; which one a given run finds first depends
-%% on search order, not on the PDDL cost model. See README.md,
-%% section "Deliberate deviation", for the full discussion.
-max_depth(20).
+%% plain star/1 search has no such per-action cost metric, so it
+%% cannot itself prefer the "PDDL-optimal" branch by action count
+%% alone (east is in fact SHORTER in raw action count). Both
+%% branches are individually reachable; which one a given run finds
+%% first depends on search order, not on the PDDL cost model. See
+%% README.md, section "Deliberate deviation", for the full discussion.
 
 connected(r1,r2,l0). connected(r2,r1,l0).
 
@@ -94,16 +92,4 @@ initially(known_code(l_e2), false).
 
 initially(blocked(_,_), false).
 
-initially(depth_used(0), true).
-
-%% --- plain facts for the real interpreter (s0 = []) ---
-at(r1).
-item_at(key_start,r1).
-item_at(key_w1,r2).
-item_at(item_p,r3).
-item_at(item_q,r4).
-item_at(key_e1,r2).
-item_at(item_m,r6).
-item_at(item_n,r7).
-item_at(key_e3,r7).
-depth_used(0).
+initially(last_room(_), false).
