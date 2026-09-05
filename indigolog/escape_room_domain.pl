@@ -110,6 +110,19 @@ poss(hint_revealed(_), true).
 poss(door_jams(_,_), true).
 
 %% ------------------------------------------------------------
+%% execute/2: MANDATORY interpreter hook, called by indixeq/3 to
+%% actually perform a committed action in the real world (as
+%% opposed to poss/2, which only checks whether it WOULD be legal).
+%% Delegates to indigolog_plain.pl's own built-in ask_execute/2,
+%% exactly matching the course's own elevator_01.pl:
+%%   execute(A, SR) :- ask_execute(A, SR).
+%% Missing this entirely was a separate bug from the causes_val/
+%% prim_fluent one -- it only surfaces once an action's poss/2
+%% check succeeds and the interpreter tries to actually commit it.
+%% ------------------------------------------------------------
+execute(A, SR) :- ask_execute(A, SR).
+
+%% ------------------------------------------------------------
 %% exog_occurs/1: MANDATORY interpreter hook. Confirmed against
 %% indigolog_plain.pl's own main loop ("once(exog_occurs(Act)),
 %% exog_action(Act), !, ...") and the course's lab files:
