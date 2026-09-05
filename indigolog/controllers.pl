@@ -25,10 +25,16 @@
 
 %% ------------------------------------------------------------
 %% Small typing helper: true for any object that is either kind
-%% of lock (used to restrict pi/2 choices below).
+%% of lock. Defined as a proc/2 abbreviation (or/2 over the two
+%% static relations), NOT a plain Prolog ":-" rule -- same fix,
+%% same reason, as goal_reached in escape_room_domain.pl: a bare
+%% ":-" predicate used inside a ?/1 test bypasses the interpreter's
+%% own condition-evaluation machinery and gets mishandled during
+%% offline search's hypothetical exploration (confirmed by a real
+%% hang inside holds/2's generic term-substitution handling for
+%% "is_lock" when used this way).
 %% ------------------------------------------------------------
-is_lock(L) :- key_lock(L).
-is_lock(L) :- code_lock(L).
+proc(is_lock(L), or(key_lock(L), code_lock(L))).
 
 %% ------------------------------------------------------------
 %% any_action: nondeterministically perform exactly ONE primitive
