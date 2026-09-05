@@ -53,3 +53,10 @@ initially(known_code(l4), false).
 initially(blocked(_,_), false).
 
 initially(depth_used(0), true).
+
+%% --- plain facts for the real interpreter (s0 = []) ---
+at(r1).
+item_at(key_a,r1).
+item_at(item_x,r2).
+item_at(item_y,r3).
+depth_used(0).

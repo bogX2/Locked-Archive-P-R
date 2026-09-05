@@ -95,3 +95,15 @@ initially(known_code(l_e2), false).
 initially(blocked(_,_), false).
 
 initially(depth_used(0), true).
+
+%% --- plain facts for the real interpreter (s0 = []) ---
+at(r1).
+item_at(key_start,r1).
+item_at(key_w1,r2).
+item_at(item_p,r3).
+item_at(item_q,r4).
+item_at(key_e1,r2).
+item_at(item_m,r6).
+item_at(item_n,r7).
+item_at(key_e3,r7).
+depth_used(0).
