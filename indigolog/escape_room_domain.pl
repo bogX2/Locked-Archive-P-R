@@ -40,8 +40,11 @@ rel_fluent(depth_used(_)).    % depth_used(N)     -- move counter, for depth bou
 %% Static (world-map) relations -- plain facts, not fluents.
 %% Declared per instance file: connected/3, needs_key/2,
 %% combinable/3, clue_at/2, key_lock/1, code_lock/1, room/1,
-%% item/1, exit_room/1, max_depth/1.
+%% item/1, exit_room/1. max_depth/1 is also per-instance, declared
+%% dynamic here so demo_exog_harness.pl can safely retract/reassert
+%% it with a looser bound for the live exogenous-event demo.
 %% ------------------------------------------------------------
+:- dynamic(max_depth/1).
 
 %% ------------------------------------------------------------
 %% Primitive (world) actions.
@@ -83,6 +86,23 @@ poss(unlock_with_code(L), known_code(L)).
 %% exogenous events are always possible for the environment to fire
 poss(hint_revealed(_), true).
 poss(door_jams(_,_), true).
+
+%% ------------------------------------------------------------
+%% exog_occurs/1: MANDATORY interpreter hook. indigolog_plain's
+%% online execution loop calls this after every action to check
+%% whether any exogenous event has occurred in the "real world"
+%% and should be incorporated before the next step. With no live
+%% event source connected, we simply report "nothing happened" --
+%% this is what lets control_simple / control_reactive run without
+%% external input. Declared dynamic so demo_exog_harness.pl can
+%% cleanly REPLACE this fallback (retractall + reassert in the
+%% correct clause order) to script hint_revealed/door_jams for the
+%% live presentation demo, instead of just adding a clause after
+%% it (which would never be reached, since this trivial "always []"
+%% clause would match first).
+%% ------------------------------------------------------------
+:- dynamic(exog_occurs/1).
+exog_occurs([]).
 
 %% depth_exhausted/0 is a convenience predicate used only inside
 %% poss/2, defined in terms of the depth_used/1 fluent and the

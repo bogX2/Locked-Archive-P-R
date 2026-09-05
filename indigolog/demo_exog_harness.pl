@@ -20,13 +20,15 @@
 %%      branch, backtracks to r2, and instead opens the east
 %%      branch (l_e1 / l_e2 / l_e3) to reach r8.
 %%
-%% NOTE ON THE INTERPRETER HOOK: the official IndiGolog
-%% distribution changed how simulated exogenous events are fed in
-%% across versions (some expose exog_occurs/1, others read from a
-%% scripted list via a "sim" environment manager, others prompt on
-%% stdin). Two integration points are provided below -- keep
-%% whichever one matches the interpreter installed on the course
-%% VM and delete the other.
+%% CONFIRMED interpreter hook (indigolog_plain.pl calls this after
+%% EVERY primitive action, expecting a list of exogenous actions
+%% that just occurred -- normally [], see escape_room_domain.pl):
+%%
+%%   exog_occurs(List)
+%%
+%% We piggyback the action counter directly on this call (it is
+%% invoked exactly once per world action by the interpreter's own
+%% loop), so no separate "notify after each action" hook is needed.
 %% ============================================================
 
 :- dynamic(exog_script/2).     % exog_script(TriggerActionCount, ExogAction)
@@ -39,49 +41,23 @@
 %% ------------------------------------------------------------
 init_demo_script :-
   retractall(exog_script(_,_)),
-  assert(exog_script(2, hint_revealed(l_w2))),
-  assert(exog_script(4, door_jams(r3,r4))),
+  assertz(exog_script(2, hint_revealed(l_w2))),
+  assertz(exog_script(4, door_jams(r3,r4))),
   retractall(actions_done(_)),
-  assert(actions_done(0)).
-
-%% ------------------------------------------------------------
-%% Call this once after every primitive action the agent executes
-%% (hook this into the interpreter's action-execution callback,
-%% e.g. exec_action/1 or similar, depending on the distribution).
-%% It bumps the counter and fires any due scripted event.
-%% ------------------------------------------------------------
-notify_action_executed(A) :-
-  prim_action(A), !,
-  retract(actions_done(N)),
-  N1 is N + 1,
-  assert(actions_done(N1)),
-  ( exog_script(N1, Exog)
-  -> format("~n>>> [demo harness] injecting exogenous event: ~w~n", [Exog]),
-     inject_exog(Exog)
-  ;  true
-  ).
-notify_action_executed(_).
-
-%% ------------------------------------------------------------
-%% Integration point A: interpreters exposing exog_occurs/1 as a
-%% hookable predicate (checked by the main loop between steps).
-%% Uncomment if this matches your interpreter version.
-%% ------------------------------------------------------------
-% :- dynamic(pending_exog/1).
-% inject_exog(E) :- assert(pending_exog(E)).
-% exog_occurs([E]) :- retract(pending_exog(E)), !.
-% exog_occurs([]).
-
-%% ------------------------------------------------------------
-%% Integration point B: interpreters that read simulated exogenous
-%% events by asserting them directly as having occurred in the
-%% current situation (older / simplified course distributions).
-%% This is the default used below.
-%% ------------------------------------------------------------
-inject_exog(E) :-
-  assertz(exog_happened(E)).
-
-:- dynamic(exog_happened/1).
+  assertz(actions_done(0)),
+  %% Replace the trivial "always []" fallback from escape_room_domain.pl
+  %% with the scripted version, in the right clause order (specific
+  %% case first, so it isn't shadowed by a catch-all).
+  retractall(exog_occurs(_)),
+  assertz((exog_occurs(L) :-
+             retract(actions_done(N)),
+             N1 is N + 1,
+             assertz(actions_done(N1)),
+             ( exog_script(N1, Exog)
+             -> L = [Exog],
+                format("~n>>> [demo harness] injecting exogenous event: ~w~n", [Exog])
+             ;  L = []
+             ))).
 
 %% ------------------------------------------------------------
 %% run_demo/0: convenience entry point for the live presentation.
@@ -92,13 +68,20 @@ inject_exog(E) :-
 %% ------------------------------------------------------------
 run_demo :-
   format("~n=== The Locked Archive -- live exogenous-event demo ===~n"),
-  ( current_predicate(max_depth/1) -> retract(max_depth(_)) ; true ),
-  assert(max_depth(35)),   % generous bound: base instance now needs up to 20
+  ( current_predicate(max_depth/1) -> retractall(max_depth(_)) ; true ),
+  assertz(max_depth(35)),  % generous bound: base instance now needs up to 20
                            % (see instance_hard.pl), and a forced mid-plan
                            % reroute from a partially-explored west branch
                            % back to a full east branch needs extra slack
                            % on top of that.
   init_demo_script,
-  initialize(evaluator),
+  initialize,              % NOT initialize(evaluator) -- confirmed on the
+                           % course VM's indigolog_plain: it's arity 0.
   format("Starting Reactive Controller on the HARD instance...~n"),
   indigolog(control_reactive).
+
+%% ------------------------------------------------------------
+%% Usage (after config.pl + main_hard.pl already loaded):
+%%   ?- ['demo_exog_harness.pl'].
+%%   ?- run_demo.
+%% ------------------------------------------------------------
