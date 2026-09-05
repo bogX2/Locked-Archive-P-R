@@ -75,17 +75,28 @@ proc(any_action,
 ).
 
 %% ------------------------------------------------------------
-%% escape_task: repeat any_action until the exit room is reached.
-%% Termination is guaranteed by the depth_used/max_depth bound
-%% baked into poss(move(...)) in escape_room_domain.pl -- without
-%% it, star(any_action) can cycle forever alternating two
-%% "move / move back" actions and the offline search below never
-%% returns (this was the very first bug found while testing on
-%% the interpreter).
+%% escape_task: try up to MAX_STEPS actions, stopping as soon as
+%% the exit room is reached. Bounded via plain program recursion
+%% counting down a Prolog integer (bounded_task/1) rather than via
+%% a fluent -- see the note in escape_room_domain.pl for why a
+%% fluent-based counter doesn't reliably work with a regression-
+%% based projector. At each level, either stop now (if the goal
+%% already holds) or take one more action and recurse with one
+%% fewer step remaining; pi/2 + a test action (?/1 with "is/2") is
+%% the standard Golog-family idiom for threading a bound Prolog
+%% integer through recursive proc/2 clauses.
 %% ------------------------------------------------------------
-proc(escape_task,
-  [ star(any_action), ?(goal_reached) ]
-).
+max_steps(20).
+
+proc(bounded_task(0), ?(goal_reached)).
+proc(bounded_task(N),
+  ndet(
+    ?(goal_reached),
+    [ any_action, pi(n1, [ ?(n1 is N - 1), bounded_task(n1) ]) ]
+  )
+) :- N > 0.
+
+proc(escape_task, [ pi(n, [ ?(max_steps(n)), bounded_task(n) ]) ]).
 
 %% ------------------------------------------------------------
 %% Simple Controller: one depth-bounded offline search, executed
@@ -100,24 +111,19 @@ proc(control(simple), control_simple).   % course-style alias (see main_*.pl)
 %% Reactive Controller: prioritized_interrupts re-evaluates the
 %% situation before every single action.
 %%   priority 1: stop as soon as the goal already holds.
-%%   priority 2: otherwise, offline-search for just ONE more
-%%               action that keeps a solution reachable, execute
-%%               it, then recurse -- so the very next decision is
-%%               made again from the fresh (possibly exogenously
-%%               updated) situation.
+%%   priority 2: otherwise, take one more legal action and recurse
+%%               -- so the very next decision is made again from
+%%               the fresh (possibly exogenously updated) situation.
+%% Note: unlike control_simple, this does one-step lookahead only
+%% (no guarantee the chosen action keeps a full solution reachable
+%% -- a known simplification of a purely online/reactive design,
+%% since a real-world action, once executed, cannot be undone).
 %% ------------------------------------------------------------
 proc(control_reactive,
   prioritized_interrupts(
     [ interrupt(goal_reached, []),
-      interrupt(true, [ search([any_action, ?(escape_still_possible)]),
-                         control_reactive ])
+      interrupt(true, [ any_action, control_reactive ])
     ]
   )
 ).
 proc(control(reactive), control_reactive).   % course-style alias (see main_*.pl)
-
-%% escape_still_possible: cheap sanity check used as the search
-%% target for a single reactive step -- true if, from here, the
-%% remaining (bounded) task can still in principle be completed.
-escape_still_possible :- goal_reached.
-escape_still_possible :- \+ goal_reached, \+ depth_exhausted.
