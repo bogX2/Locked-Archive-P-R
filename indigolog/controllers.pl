@@ -43,11 +43,31 @@
 %% native holds/2 connective, confirmed from indigolog_plain.pl's
 %% own source) instead of a separate is_lock/1 abstraction.
 %% ------------------------------------------------------------
+%% ------------------------------------------------------------
+%% do_move: prefers NOT undoing the immediately previous move
+%% (first ndet branch, respects last_room), but falls back to
+%% allowing it (second branch) if that's genuinely the only legal
+%% move left -- e.g. when an exogenous door_jams blocks the only
+%% forward path. ndet/2's trans is defined via Prolog disjunction
+%% (try branch 1 ; try branch 2), so the fallback is only ever
+%% reached via backtracking once the preferred branch fails
+%% entirely; every already-validated run (easy/medium/hard, both
+%% controllers) succeeds via the FIRST branch exactly as before,
+%% so this changes nothing for those -- it only adds an escape
+%% hatch for the specific stuck-with-no-legal-move scenario the
+%% live exogenous-event demo needs.
+%% ------------------------------------------------------------
 proc(do_move,
-  pi(r1, pi(r2, pi(l,
-    [ ?(room(r1)), ?(room(r2)), ?(or(key_lock(l), code_lock(l))),
-      ?(neg(last_room(r2))), move(r1,r2,l) ]
-  )))
+  ndet(
+    pi(r1, pi(r2, pi(l,
+      [ ?(room(r1)), ?(room(r2)), ?(or(key_lock(l), code_lock(l))),
+        ?(neg(last_room(r2))), move(r1,r2,l) ]
+    ))),
+    pi(r1, pi(r2, pi(l,
+      [ ?(room(r1)), ?(room(r2)), ?(or(key_lock(l), code_lock(l))),
+        move(r1,r2,l) ]
+    )))
+  )
 ).
 
 proc(do_pick_up,
