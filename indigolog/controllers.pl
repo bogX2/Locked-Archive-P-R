@@ -46,7 +46,7 @@ is_lock(L) :- code_lock(L).
 proc(any_action,
   ndet(
     pi(r1, pi(r2, pi(l,
-      [ ?(room(r1)), ?(room(r2)), ?(is_lock(l)), move(r1,r2,l) ]
+      [ ?(room(r1)), ?(room(r2)), ?(is_lock(l)), ?(neg(last_room(r2))), move(r1,r2,l) ]
     ))),
   ndet(
     pi(i, pi(r,

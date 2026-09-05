@@ -14,6 +14,13 @@
 :- discontiguous(poss/2).
 :- discontiguous(causes_true/3).
 :- discontiguous(causes_false/3).
+%% multifile: rel_fluent/1 and causes_true/3 get MORE clauses added
+%% from controllers.pl (the world_changed fluent, used only by the
+%% Reactive Controller) -- without this, SWI just warns ("Redefined
+%% static procedure"), it isn't fatal, but multifile is the correct
+%% declaration for predicates legitimately split across files.
+:- multifile(rel_fluent/1).
+:- multifile(causes_true/3).
 
 %% ------------------------------------------------------------
 %% Mandatory IndiGolog boilerplate.
@@ -166,6 +173,24 @@ causes_true(unlocked(L), unlock_with_code(L), true).
 
 causes_true(blocked(R1,R2), door_jams(R1,R2), true).
 causes_true(blocked(R2,R1), door_jams(R1,R2), true).  % doors are symmetric
+
+%% ------------------------------------------------------------
+%% last_room/1: the room the agent was in just before its most
+%% recent move. Used ONLY to block immediately undoing a move
+%% (moving straight back to where you just came from) -- the one
+%% simple, unbounded cycle that would otherwise let an offline
+%% search over star(any_action) recurse forever without ever
+%% backtracking to try a different, goal-reaching branch. This is
+%% the exact same anti-cycle technique used (and confirmed working)
+%% in the course's own sokoban.pl reference project:
+%%   rel_fluent(last_at(L)) :- loc(L).
+%%   causes_true(move(L1,_L2), last_at(L1), true).
+%%   causes_false(move(L1,_L2), last_at(X), X \= L1).
+%% ------------------------------------------------------------
+:- dynamic(last_room/1).
+rel_fluent(last_room(_)).
+causes_true(last_room(R1),  move(R1,_R2,_L), true).
+causes_false(last_room(X),  move(R1,_R2,_L), X \= R1).
 
 %% ------------------------------------------------------------
 %% Reasoning-task helper predicates (used by reasoning_tasks.pl)
