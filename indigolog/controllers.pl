@@ -44,30 +44,26 @@
 %% own source) instead of a separate is_lock/1 abstraction.
 %% ------------------------------------------------------------
 %% ------------------------------------------------------------
-%% do_move: prefers NOT undoing the immediately previous move
-%% (first ndet branch, respects last_room), but falls back to
-%% allowing it (second branch) if that's genuinely the only legal
-%% move left -- e.g. when an exogenous door_jams blocks the only
-%% forward path. ndet/2's trans is defined via Prolog disjunction
-%% (try branch 1 ; try branch 2), so the fallback is only ever
-%% reached via backtracking once the preferred branch fails
-%% entirely; every already-validated run (easy/medium/hard, both
-%% controllers) succeeds via the FIRST branch exactly as before,
-%% so this changes nothing for those -- it only adds an escape
-%% hatch for the specific stuck-with-no-legal-move scenario the
-%% live exogenous-event demo needs.
+%% do_move: the PREFERRED move -- respects last_room (no immediate
+%% backtracking). do_move_fallback (see below, near any_action) is
+%% the anti-cycle-IGNORING escape hatch, tried only as the very
+%% LAST resort after every other action type has been tried too --
+%% NOT bundled inside do_move itself. An earlier version nested the
+%% fallback directly inside do_move's own ndet, which made it the
+%% SECOND candidate any_action would try overall (right after the
+%% preferred move) -- since bouncing back is almost always possible
+%% once some door is unlocked, this made the agent prefer endless
+%% move/move-back cycling over ever trying pick_up/unlock, causing
+%% exactly the infinite r1<->r2 loop seen when actually testing the
+%% live exogenous-event demo. Keeping it as the LAST option in
+%% any_action's ndet chain instead ensures every productive action
+%% (pick_up, combine, read_clue, unlock_*) is tried first.
 %% ------------------------------------------------------------
 proc(do_move,
-  ndet(
-    pi(r1, pi(r2, pi(l,
-      [ ?(room(r1)), ?(room(r2)), ?(or(key_lock(l), code_lock(l))),
-        ?(neg(last_room(r2))), move(r1,r2,l) ]
-    ))),
-    pi(r1, pi(r2, pi(l,
-      [ ?(room(r1)), ?(room(r2)), ?(or(key_lock(l), code_lock(l))),
-        move(r1,r2,l) ]
-    )))
-  )
+  pi(r1, pi(r2, pi(l,
+    [ ?(room(r1)), ?(room(r2)), ?(or(key_lock(l), code_lock(l))),
+      ?(neg(last_room(r2))), move(r1,r2,l) ]
+  )))
 ).
 
 proc(do_pick_up,
@@ -111,21 +107,24 @@ proc(any_action,
 ).
 
 %% ------------------------------------------------------------
-%% escape_task: repeat any_action until the exit room is reached.
-%% Plain star/1 + a goal test, exactly the pattern confirmed
-%% working in sokoban.pl's "dumb" controller:
-%%   proc(dumb, [star(do_something), ?(neg(some_boxes_not_on_trg))]).
-%% An earlier version of this file replaced star/1 with a hand-
-%% rolled numeric "bounded_task" out of an unconfirmed worry about
-%% infinite loops -- that extra complexity is removed now that a
-%% real working reference project shows plain star/1 is fine here
-%% (the earlier "false" / no-solution results were most likely
-%% caused by the exog_occurs/1 and goal_reached bugs fixed
-%% elsewhere in this file and in escape_room_domain.pl, not by an
-%% actual infinite loop in star/1 itself).
+%% escape_task: repeat any_action UNTIL the exit room is reached.
+%%
+%% IMPORTANT (final correction): uses while(neg(goal_reached),
+%% any_action), NOT [star(any_action), ?(goal_reached)]. The two
+%% look equivalent but are NOT: star/1 always prefers "take one more
+%% action" over "stop and check the goal" during DFS exploration
+%% (trans/4's list-clause tries "advance the head" before "skip to
+%% checking the tail"), so search(escape_task) could keep wandering
+%% PAST an already-reached goal room (confirmed live: the search
+%% explored move(r8,r5,l_w4) -- moving OUT of the already-reached
+%% exit room r8 -- instead of stopping there) once do_move_fallback
+%% made many more moves available at every step. while(P,E) checks
+%% P explicitly BEFORE every iteration and is immediately final the
+%% moment P becomes false, so it cannot wander past a goal it has
+%% already reached.
 %% ------------------------------------------------------------
 proc(escape_task,
-  [ star(any_action), ?(goal_reached) ]
+  while(neg(goal_reached), any_action)
 ).
 
 %% ------------------------------------------------------------
@@ -166,7 +165,36 @@ proc(control(simple), control_simple).   % course-style alias (see main_*.pl)
 %% provided by additional interpreter modules not present in the
 %% plain variant.
 %% ------------------------------------------------------------
+%% ------------------------------------------------------------
+%% Reactive Controller: re-plans the FULL remaining task whenever
+%% needed, not just one action at a time.
+%%
+%% IMPORTANT (final correction after live-testing the exogenous-
+%% event demo): search(any_action) -- one action at a time, no
+%% lookahead -- is too short-sighted for this domain. It cannot
+%% tell "going back to r1 leads nowhere new" from "going to r6
+%% leads to the goal" -- both are locally legal, so it can (and
+%% did, when actually tested) cycle r1<->r2<->r3 forever once the
+%% west branch got blocked, since r1 is just as "valid" a next step
+%% as r6 with no lookahead to prefer one over the other.
+%%
+%% search(escape_task) -- the FULL task, exactly mirroring taxi.pl's
+%% and sokoban.pl's own reactive controllers (both use
+%% "search(FULL_TASK)" inside their interrupt body, not a single
+%% action) -- fixes this: it finds a COMPLETE multi-step plan via
+%% proper DFS with backtracking, correctly discovering "back out of
+%% r3 via the fallback move, THEN go east" as one coherent solution,
+%% rather than making that decision short-sightedly one step at a
+%% time. Self-healing after an exogenous event comes for free from
+%% indigolog_plain.pl's own followpath/2 semantics: if a later
+%% cached step's precondition breaks (e.g. door_jams), followpath's
+%% "off path; check again" clause automatically redoes
+%% search(escape_task) from the CURRENT (updated) situation --
+%% functionally the same effect as taxi.pl/sokoban.pl's
+%% gexec+unset pattern, without needing those (unavailable in
+%% indigolog_plain.pl) constructs at all.
+%% ------------------------------------------------------------
 proc(control_reactive, prioritized_interrupts([
-  interrupt(neg(goal_reached), search(any_action))
+  interrupt(neg(goal_reached), search(escape_task))
 ])).
 proc(control(reactive), control_reactive).   % course-style alias (see main_*.pl)

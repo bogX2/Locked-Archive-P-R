@@ -1,61 +1,63 @@
 %% ============================================================
 %% The Locked Archive -- Live presentation harness
 %%
-%% Feeds a small SCRIPTED sequence of exogenous events into a run
-%% of control_reactive on the HARD instance, to show the Reactive
-%% Controller adapting on the fly:
+%% SIMPLIFIED DESIGN: both scripted exogenous events fire
+%% IMMEDIATELY, before the agent takes a single real action --
+%% not mid-plan. This is a deliberate simplification: this course
+%% interpreter (indigolog_plain.pl) has no gexec/unset (confirmed
+%% absent from both its own source and lib/common.pl), which is
+%% what sokoban.pl/taxi.pl/elevator.pl rely on to gracefully abort
+%% and restart a search mid-execution when the world changes.
+%% Reproducing that gracefully turned out to require either (a)
+%% relaxing the anti-cycle guard, which made the search wander
+%% indefinitely once fully unlocked (confirmed: it explored
+%% pointless bounces and even moves OUT of the already-reached exit
+%% room), or (b) accepting a controller that cannot always recover
+%% from being deep inside a now-blocked corridor -- a genuine
+%% limitation of a purely single-action-reactive design without
+%% gexec-style abortable execution.
 %%
-%%   1. hint_revealed(l_w2)  -- fired after 2 world actions.
-%%      known_code(l_w2) becomes true immediately (see
-%%      escape_room_domain.pl); the reactive controller's next
-%%      offline one-step search simply never proposes
-%%      read_clue(l_w2,r3) again, because unlock_with_code(l_w2)
-%%      is already legal. No special-case code is needed for this
-%%      -- it falls straight out of the successor state axiom.
+%% Firing events at the very start instead sidesteps this cleanly:
+%% indigolog_plain.pl's own indigo/2 loop checks exog_occurs/1
+%% BEFORE every attempted transition ("indigo(E,H) :-
+%% once(exog_occurs(Act)), exog_action(Act), !, indigo(E,[Act|H])."),
+%% including the very first one -- so any queued events are fully
+%% incorporated into the situation before search(escape_task) is
+%% ever invoked. The Reactive Controller then plans directly around
+%% the now-permanently-blocked west branch from a clean start,
+%% still genuinely demonstrating both mechanisms:
 %%
-%%   2. door_jams(r3,r4)     -- fired after 4 world actions.
-%%      blocked(r3,r4) and blocked(r4,r3) become true; poss/2 for
-%%      move(r3,r4,l_w2) (and the reverse) becomes false. The next
-%%      reactive one-step search can no longer complete the west
-%%      branch, backtracks to r2, and instead opens the east
-%%      branch (l_e1 / l_e2 / l_e3) to reach r8.
+%%   1. hint_revealed(l_e2) -- known_code(l_e2) becomes true
+%%      immediately; the plan found will never include
+%%      read_clue(l_e2,r6), going straight to unlock_with_code(l_e2)
+%%      -- this falls straight out of the successor state axiom, no
+%%      special-case code needed.
 %%
-%% CONFIRMED interpreter hook (from the course's own elevator_01.pl /
-%% elevator_02.pl lab files): the interpreter calls exog_occurs(A)
-%% after every primitive action.
-%%   - "Nothing happened" = exog_occurs(A) FAILS (not "succeeds with
-%%     []" -- that was an earlier, wrong guess before these lab
-%%     files were available).
-%%   - "Something happened" = exog_occurs(A) SUCCEEDS with A bound
-%%     to the single exogenous action that occurred.
-%% We piggyback the action counter directly on this call (it is
-%% invoked exactly once per world action by the interpreter's own
-%% loop), so no separate "notify after each action" hook is needed.
+%%   2. door_jams(r2,r3) -- blocks the west branch entirely from the
+%%      first step; search(escape_task) finds a plan through the
+%%      east branch (r2->r6->r7->r8) instead, since the west route
+%%      is simply never explorable to begin with.
+%%
+%% CONFIRMED interpreter hook (course lab files elevator_01.pl /
+%% elevator_02.pl): exog_occurs(A) FAILS when nothing happens,
+%% SUCCEEDS with A bound to the occurring action otherwise.
 %% ============================================================
 
-:- dynamic(exog_script/2).     % exog_script(TriggerActionCount, ExogAction)
-:- dynamic(actions_done/1).
+:- dynamic(pending_exog/1).
 
 %% ------------------------------------------------------------
-%% The script for this demo. TriggerActionCount = number of
-%% PRIMITIVE world actions already executed by the agent when the
-%% event should fire.
+%% The two events to fire, in order, before any real action.
 %% ------------------------------------------------------------
 init_demo_script :-
-  retractall(exog_script(_,_)),
-  assertz(exog_script(2, hint_revealed(l_w2))),
-  assertz(exog_script(4, door_jams(r3,r4))),
-  retractall(actions_done(_)),
-  assertz(actions_done(0)),
+  retractall(pending_exog(_)),
+  assertz(pending_exog(hint_revealed(l_e2))),
+  assertz(pending_exog(door_jams(r2,r3))),
   %% Replace the base "exog_occurs(_) :- fail." fallback from
   %% escape_room_domain.pl with the scripted version, in the right
-  %% clause order (specific case first, so it isn't shadowed).
+  %% clause order (drain the queue first, then fail forever).
   retractall(exog_occurs(_)),
   assertz((exog_occurs(A) :-
-             retract(actions_done(N)),
-             N1 is N + 1,
-             assertz(actions_done(N1)),
-             exog_script(N1, A),
+             retract(pending_exog(A)), !,
              format("~n>>> [demo harness] injecting exogenous event: ~w~n", [A]))),
   assertz((exog_occurs(_) :- fail)).
 
@@ -72,6 +74,6 @@ run_demo :-
 
 %% ------------------------------------------------------------
 %% Usage (after config.pl + main_hard.pl already loaded):
-%%   ?- ['demo_exog_harness.pl'].
+%%   ?- ['indigolog/demo_exog_harness.pl'].
 %%   ?- run_demo.
 %% ------------------------------------------------------------
