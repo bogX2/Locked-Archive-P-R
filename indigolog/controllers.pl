@@ -26,61 +26,57 @@
 %% ------------------------------------------------------------
 %% any_action: nondeterministically perform exactly ONE primitive
 %% world action. Broken into separate NAMED sub-procedures combined
-%% via ndet/2 over the NAMES -- exactly the structure used (and
-%% confirmed working) in sokoban.pl's "do_something":
-%%   proc(do_something, ndet(move_somewhere, ndet(slip_something, push_something))).
+%% via ndet/2 over the NAMES -- the structure used in sokoban.pl's
+%% "do_something": proc(do_something, ndet(move_somewhere, ...)).
 %%
-%% IMPORTANT (further correction): the earlier version of this file
-%% added explicit type-checking tests like ?(room(r1)), ?(item(i)),
-%% ?(is_lock(l)) before each action. sokoban.pl's own move_somewhere/
-%% push_something/slip_something never do this -- they rely
-%% entirely on FLUENTS (self_at, adjacent, at/2, is_slippery) to
-%% naturally constrain pi's existential choices, and let poss/2
-%% (triggered automatically when the interpreter tries to execute
-%% the primitive action itself) do all remaining legality checking.
-%% Bare static-fact "type" predicates used directly as a ?/1
-%% argument are exactly the pattern that broke earlier (is_lock,
-%% goal_reached) -- removing them entirely, rather than continuing
-%% to individually wrap each one in proc/2, is both simpler and
-%% matches the proven reference structure more closely. The only
-%% tests kept below are genuine FLUENT conditions (has/1,
-%% unlocked/1, known_code/1, last_room/1) needed to prevent
-%% pointless repeats/cycles -- everything else is left for poss/2
-%% (in escape_room_domain.pl) to check when the action is attempted.
+%% Each sub-procedure GROUNDS its variables first via plain static
+%% facts (room/1, item/1, key_lock/1, code_lock/1), THEN checks any
+%% negative "don't repeat this pointlessly" guard. Order matters:
+%% a negative test like ?(neg(has(i))) alone never BINDS i (negation
+%% as failure just checks no solution exists, it doesn't produce
+%% one) -- an earlier version of this file removed the grounding
+%% tests entirely, which left i/r unbound and made every action a
+%% no-op. The actual root cause of the original infinite loop was
+%% unrelated (causes_true/false vs. causes_val/4, fixed in
+%% escape_room_domain.pl) -- these type-grounding tests were never
+%% the problem and are back to stay. or/2 is used directly (a
+%% native holds/2 connective, confirmed from indigolog_plain.pl's
+%% own source) instead of a separate is_lock/1 abstraction.
 %% ------------------------------------------------------------
 proc(do_move,
   pi(r1, pi(r2, pi(l,
-    [ ?(neg(last_room(r2))), move(r1,r2,l) ]
+    [ ?(room(r1)), ?(room(r2)), ?(or(key_lock(l), code_lock(l))),
+      ?(neg(last_room(r2))), move(r1,r2,l) ]
   )))
 ).
 
 proc(do_pick_up,
   pi(i, pi(r,
-    [ ?(neg(has(i))), pick_up(i,r) ]
+    [ ?(item(i)), ?(room(r)), ?(neg(has(i))), pick_up(i,r) ]
   ))
 ).
 
 proc(do_combine,
   pi(i1, pi(i2, pi(i3,
-    combine(i1,i2,i3)
+    [ ?(item(i1)), ?(item(i2)), ?(item(i3)), combine(i1,i2,i3) ]
   )))
 ).
 
 proc(do_read_clue,
   pi(l, pi(r,
-    [ ?(neg(known_code(l))), read_clue(l,r) ]
+    [ ?(or(key_lock(l), code_lock(l))), ?(room(r)), ?(neg(known_code(l))), read_clue(l,r) ]
   ))
 ).
 
 proc(do_unlock_key,
   pi(l, pi(i,
-    [ ?(neg(unlocked(l))), unlock_with_key(l,i) ]
+    [ ?(key_lock(l)), ?(item(i)), ?(neg(unlocked(l))), unlock_with_key(l,i) ]
   ))
 ).
 
 proc(do_unlock_code,
   pi(l,
-    [ ?(neg(unlocked(l))), unlock_with_code(l) ]
+    [ ?(code_lock(l)), ?(neg(unlocked(l))), unlock_with_code(l) ]
   )
 ).
 
